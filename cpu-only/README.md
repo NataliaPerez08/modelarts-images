@@ -1,5 +1,7 @@
 # Imagen personalizada CPU para ModelArts Notebook
 
+> Índice del repositorio: [`../README.md`](../README.md)
+
 `Dockerfile` basado en la guía oficial de Huawei Cloud
 [Creating a Custom Image on ECS and Using It](https://support.huaweicloud.com/intl/en-us/docker-modelarts/docker-modelarts_0011-0.html#section5),
 preparado **solo para Notebook con CPU** (sin CUDA ni CANN).
