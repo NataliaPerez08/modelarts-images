@@ -9,15 +9,14 @@ SWR por separado.
 | Directorio | Tipo en ModelArts | Arquitectura | Base | Caso de uso |
 | --- | --- | --- | --- | --- |
 | [`cpu-only/`](cpu-only/README.md) | `CPU` | `x86_64` | `ubuntu:22.04` | Notebook de desarrollo sin acelerador: Python, Jupyter kernel, librerías científicas y PyTorch CPU opcional. |
+| [`gpu-nvidia/`](gpu-nvidia/README.md) | `GPU` | `x86_64` | Imagen oficial `atelier/pytorch_cuda` (Ubuntu/EulerOS según tag) | Notebook con GPU NVIDIA: PyTorch + CUDA, kernel de Jupyter y script de verificación. |
 | [`ascend-npu/`](ascend-npu/README.md) | `NPU` | `aarch64` | Imagen oficial `atelier/pytorch_ascend` (EulerOS/HCE) | Notebook con NPU Ascend: CANN, `torch_npu`, kernel de Jupyter y script de verificación. |
 
 ## Cuál usar
 
 - **Sin acelerador** (exploración de datos, prototipos, CPUs): `cpu-only`.
 - **Con NPU Ascend** (entrenamiento/inferencia en Atlas): `ascend-npu`.
-- **Con GPU NVIDIA**: no hay variante en este repositorio; parte de una imagen
-  `atelier/pytorch_cuda` de ModelArts y añade `ma-user`/`ma-group` si la base no
-  los trae (ver la guía de Huawei Cloud en los enlaces de abajo).
+- **Con GPU NVIDIA**: usa la variante [`gpu-nvidia/`](gpu-nvidia/README.md) (parte de `atelier/pytorch_cuda` de ModelArts).
 
 ## Flujo común
 
@@ -28,6 +27,10 @@ SWR por separado.
    # CPU (x86_64)
    cd cpu-only
    docker build -t swr.<region>.myhuaweicloud.com/<organizacion>/modelarts-notebook-cpu:v1 .
+
+   # GPU NVIDIA (x86_64)
+   cd gpu-nvidia
+   docker build -t swr.<region>.myhuaweicloud.com/<organizacion>/modelarts-notebook-gpu:v1 .
 
    # NPU Ascend (aarch64, ECS ARM64/Kunpeng)
    cd ascend-npu
@@ -50,6 +53,7 @@ SWR por separado.
    | Imagen | Architecture | Type | Specification |
    | --- | --- | --- | --- |
    | `cpu-only` | `x86_64` | `CPU` | — |
+   | `gpu-nvidia` | `x86_64` | `GPU` | Según la imagen base/driver (consultar disponibilidad en ModelArts) |
    | `ascend-npu` | `aarch64` | `NPU` | Debe coincidir con el tag: `snt9b`, `snt9b23` o `snt3p` |
 
 5. **Crear el Notebook** con **Custom Images**, la imagen registrada y
@@ -77,6 +81,10 @@ modelarts-images/
 ├── README.md
 ├── cpu-only/
 │   ├── Dockerfile
+│   └── README.md
+├── gpu-nvidia/
+│   ├── Dockerfile
+│   ├── verify-gpu.sh
 │   └── README.md
 └── ascend-npu/
     ├── Dockerfile

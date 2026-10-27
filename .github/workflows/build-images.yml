@@ -1,0 +1,164 @@
+name: Build ModelArts Custom Images
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'cpu-only/**'
+      - 'gpu-nvidia/**'
+      - 'ascend-npu/**'
+      - '.github/workflows/build-images.yml'
+  pull_request:
+    paths:
+      - 'cpu-only/**'
+      - 'gpu-nvidia/**'
+      - 'ascend-npu/**'
+      - '.github/workflows/build-images.yml'
+  workflow_dispatch:
+    inputs:
+      push:
+        description: 'Push images to SWR'
+        required: true
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+      region:
+        description: 'SWR region (e.g., cn-north-4)'
+        required: false
+        default: ''
+        type: string
+      organization:
+        description: 'SWR organization'
+        required: false
+        default: ''
+        type: string
+
+env:
+  REGISTRY: swr.${{ github.event.inputs.region || vars.SWR_REGION }}.myhuaweicloud.com
+  ORG: ${{ github.event.inputs.organization || vars.SWR_ORGANIZATION }}
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      cpu: ${{ steps.filter.outputs.cpu }}
+      gpu: ${{ steps.filter.outputs.gpu }}
+      npu: ${{ steps.filter.outputs.npu }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            cpu:
+              - 'cpu-only/**'
+            gpu:
+              - 'gpu-nvidia/**'
+            npu:
+              - 'ascend-npu/**'
+
+  build-cpu:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.cpu == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to SWR
+        if: (github.event_name == 'workflow_dispatch' && github.event.inputs.push == 'true') || (github.event_name == 'push' && env.REGISTRY != 'swr..myhuaweicloud.com')
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.SWR_USERNAME }}
+          password: ${{ secrets.SWR_PASSWORD }}
+
+      - name: Build and push cpu-only
+        uses: docker/build-push-action@v6
+        with:
+          context: ./cpu-only
+          file: ./cpu-only/Dockerfile
+          platforms: linux/amd64
+          push: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.push == 'true') && env.REGISTRY != 'swr..myhuaweicloud.com' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.ORG }}/modelarts-notebook-cpu:latest
+            ${{ env.REGISTRY }}/${{ env.ORG }}/modelarts-notebook-cpu:${{ github.sha }}
+          build-args: |
+            INSTALL_PYTORCH_CPU=true
+
+  build-gpu:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.gpu == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to SWR
+        if: (github.event_name == 'workflow_dispatch' && github.event.inputs.push == 'true') || (github.event_name == 'push' && env.REGISTRY != 'swr..myhuaweicloud.com')
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.SWR_USERNAME }}
+          password: ${{ secrets.SWR_PASSWORD }}
+
+      - name: Build and push gpu-nvidia
+        uses: docker/build-push-action@v6
+        with:
+          context: ./gpu-nvidia
+          file: ./gpu-nvidia/Dockerfile
+          platforms: linux/amd64
+          push: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.push == 'true') && env.REGISTRY != 'swr..myhuaweicloud.com' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.ORG }}/modelarts-notebook-gpu:latest
+            ${{ env.REGISTRY }}/${{ env.ORG }}/modelarts-notebook-gpu:${{ github.sha }}
+          build-args: |
+            INSTALL_EXTRA_PACKAGES=true
+
+  build-npu:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.npu == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to SWR
+        if: (github.event_name == 'workflow_dispatch' && github.event.inputs.push == 'true') || (github.event_name == 'push' && env.REGISTRY != 'swr..myhuaweicloud.com')
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.SWR_USERNAME }}
+          password: ${{ secrets.SWR_PASSWORD }}
+
+      - name: Build and push ascend-npu
+        uses: docker/build-push-action@v6
+        with:
+          context: ./ascend-npu
+          file: ./ascend-npu/Dockerfile
+          platforms: linux/arm64
+          push: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.push == 'true') && env.REGISTRY != 'swr..myhuaweicloud.com' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.ORG }}/modelarts-notebook-ascend:latest
+            ${{ env.REGISTRY }}/${{ env.ORG }}/modelarts-notebook-ascend:${{ github.sha }}
+          build-args: |
+            INSTALL_EXTRA_PACKAGES=true
